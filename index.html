@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERP Ateliê Mãos de Maria • V6 PRO</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;background:#eef1f7}
+header{background:#17202a;color:white;padding:16px 30px;font-size:22px;font-weight:bold}
+nav{display:flex;flex-wrap:wrap;gap:8px;background:#283747;padding:10px}
+nav button{background:#3c5aa6;color:white;border:none;padding:8px 14px;border-radius:6px;cursor:pointer}
+nav button:hover{background:#5677d4}
+.container{padding:20px}
+.card{background:white;border-radius:10px;padding:20px;margin-bottom:20px;box-shadow:0 4px 10px rgba(0,0,0,0.08)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px}
+input,select{padding:8px;width:100%;margin-top:4px;margin-bottom:10px;border-radius:6px;border:1px solid #ccc}
+button.action{background:#2563eb;color:white;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+button.export{background:#16a34a;color:white;border:none;padding:10px 16px;border-radius:6px;margin-top:10px;cursor:pointer}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #ddd}
+.stat{font-size:22px;font-weight:bold}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>ERP Ateliê Mãos de Maria • VERSÃO 6 PRO</header>
+
+<nav>
+<button onclick="openTab('dashboard')">Dashboard</button>
+<button onclick="openTab('vendas')">Vendas</button>
+<button onclick="openTab('gastos')">Gastos</button>
+<button onclick="openTab('clientes')">Clientes</button>
+<button onclick="openTab('ranking')">Ranking Clientes</button>
+<button onclick="openTab('modelos')">Lucro por Modelo</button>
+<button onclick="openTab('estoque')">Estoque</button>
+<button onclick="openTab('contas')">Contas Casa</button>
+</nav>
+
+<div class="container">
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="tab">
+<div class="grid">
+<div class="card"><div>Total Vendas</div><div id="statVendas" class="stat">R$0</div></div>
+<div class="card"><div>Total Gastos</div><div id="statGastos" class="stat">R$0</div></div>
+<div class="card"><div>Lucro</div><div id="statLucro" class="stat">R$0</div></div>
+<div class="card"><div>Total Clientes</div><div id="statClientes" class="stat">0</div></div>
+</div>
+
+<div class="card">
+<canvas id="graficoFinanceiro"></canvas>
+</div>
+
+<div class="card">
+<canvas id="graficoMensal"></canvas>
+<button class="export" onclick="exportPDF('Dashboard Financeiro')">Exportar PDF</button>
+</div>
+</div>
+
+<!-- VENDAS -->
+<div id="vendas" class="tab hidden">
+<div class="card">
+<h3>Registrar Venda</h3>
+<input id="cliente" placeholder="Cliente">
+<input id="telefone" placeholder="Telefone (opcional)">
+<input id="modelo" placeholder="Modelo do Terço">
+<input id="valor" type="number" placeholder="Valor">
+<input id="quantidade" type="number" value="1">
+<button class="action" onclick="registrarVenda()">Salvar Venda</button>
+</div>
+
+<div class="card">
+<h3>Histórico</h3>
+<label>Filtrar por Data</label>
+<input type="date" id="filtroData" onchange="render()">
+<table id="tabelaVendas">
+<thead>
+<tr>
+<th>Data</th>
+<th>Cliente</th>
+<th>Modelo</th>
+<th>Valor</th>
+<th>Qtd</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<button class="export" onclick="exportPDF('Relatorio Vendas')">Exportar PDF</button>
+</div>
+</div>
+
+<!-- GASTOS -->
+<div id="gastos" class="tab hidden">
+<div class="card">
+<h3>Novo Gasto</h3>
+<select id="categoria">
+<option>Shopee</option>
+<option>Loja Mococa</option>
+<option>Mercado Livre</option>
+<option>Outros</option>
+</select>
+<input id="valorGasto" type="number" placeholder="Valor">
+<button class="action" onclick="registrarGasto()">Salvar</button>
+</div>
+
+<div class="card">
+<table id="tabelaGastos">
+<thead>
+<tr>
+<th>Data</th>
+<th>Categoria</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- CLIENTES -->
+<div id="clientes" class="tab hidden">
+<div class="card">
+<h3>Clientes</h3>
+<table id="tabelaClientes">
+<thead>
+<tr>
+<th>Nome</th>
+<th>Telefone</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- RANKING CLIENTES -->
+<div id="ranking" class="tab hidden">
+<div class="card">
+<h3>Clientes que Mais Compraram</h3>
+<table id="rankingClientes">
+<thead>
+<tr>
+<th>Cliente</th>
+<th>Total Comprado</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- LUCRO POR MODELO -->
+<div id="modelos" class="tab hidden">
+<div class="card">
+<h3>Vendas por Modelo</h3>
+<table id="tabelaModelos">
+<thead>
+<tr>
+<th>Modelo</th>
+<th>Total Vendido</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- ESTOQUE -->
+<div id="estoque" class="tab hidden">
+<div class="card">
+<h3>Novo Material</h3>
+<input id="material" placeholder="Material">
+<input id="qtdMaterial" type="number" placeholder="Quantidade">
+<input id="custoMaterial" type="number" placeholder="Custo">
+<button class="action" onclick="addMaterial()">Salvar</button>
+</div>
+
+<div class="card">
+<table id="tabelaEstoque">
+<thead>
+<tr>
+<th>Material</th>
+<th>Qtd</th>
+<th>Custo</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
+
+<!-- CONTAS CASA -->
+<div id="contas" class="tab hidden">
+<div class="card">
+<h3>Contas da Casa</h3>
+<div class="grid" id="contasGrid"></div>
+<button class="action" onclick="calcularContas()">Calcular</button>
+<div id="resultadoContas"></div>
+</div>
+</div>
+
+</div>
+
+<script>
+function openTab(tab){
+document.querySelectorAll('.tab').forEach(t=>t.classList.add('hidden'))
+document.getElementById(tab).classList.remove('hidden')
+}
+
+let vendas=JSON.parse(localStorage.getItem('vendas')||'[]')
+let gastos=JSON.parse(localStorage.getItem('gastos')||'[]')
+let estoque=JSON.parse(localStorage.getItem('estoque')||'[]')
+
+function salvar(){
+localStorage.setItem('vendas',JSON.stringify(vendas))
+localStorage.setItem('gastos',JSON.stringify(gastos))
+localStorage.setItem('estoque',JSON.stringify(estoque))
+render()
+}
+
+function registrarVenda(){
+let v={
+data:new Date().toISOString().slice(0,10),
+cliente:cliente.value,
+telefone:telefone.value,
+modelo:modelo.value,
+valor:parseFloat(valor.value),
+qtd:parseInt(quantidade.value)
+}
+vendas.push(v)
+salvar()
+}
+
+function registrarGasto(){
+let g={data:new Date().toISOString().slice(0,10),cat:categoria.value,valor:parseFloat(valorGasto.value)}
+gastos.push(g)
+salvar()
+}
+
+function addMaterial(){
+estoque.push({material:material.value,qtd:qtdMaterial.value,custo:custoMaterial.value})
+salvar()
+}
+
+function render(){
+
+let filtro=filtroData?.value
+
+let tv=document.querySelector('#tabelaVendas tbody')
+tv.innerHTML=''
+
+let vendasFiltradas=vendas.filter(v=>!filtro||v.data===filtro)
+
+vendasFiltradas.forEach(v=>{
+let total=v.valor*v.qtd
+
+tv.innerHTML+=`<tr>
+<td>${v.data}</td>
+<td>${v.cliente}</td>
+<td>${v.modelo}</td>
+<td>${v.valor}</td>
+<td>${v.qtd}</td>
+<td>${total}</td>
+</tr>`
+})
+
+let tg=document.querySelector('#tabelaGastos tbody')
+tg.innerHTML=''
+gastos.forEach(g=>{
+tg.innerHTML+=`<tr><td>${g.data}</td><td>${g.cat}</td><td>${g.valor}</td></tr>`
+})
+
+let clientesMap={}
+let modelosMap={}
+
+vendas.forEach(v=>{
+let total=v.valor*v.qtd
+
+clientesMap[v.cliente]=(clientesMap[v.cliente]||0)+total
+modelosMap[v.modelo]=(modelosMap[v.modelo]||0)+total
+})
+
+let tc=document.querySelector('#tabelaClientes tbody')
+tc.innerHTML=''
+Object.keys(clientesMap).forEach(nome=>{
+tc.innerHTML+=`<tr><td>${nome}</td><td></td></tr>`
+})
+
+let ranking=document.querySelector('#rankingClientes tbody')
+ranking.innerHTML=''
+
+Object.entries(clientesMap)
+.sort((a,b)=>b[1]-a[1])
+.forEach(c=>{
+ranking.innerHTML+=`<tr><td>${c[0]}</td><td>R$ ${c[1]}</td></tr>`
+})
+
+let tm=document.querySelector('#tabelaModelos tbody')
+tm.innerHTML=''
+Object.entries(modelosMap).forEach(m=>{
+tm.innerHTML+=`<tr><td>${m[0]}</td><td>R$ ${m[1]}</td></tr>`
+})
+
+let te=document.querySelector('#tabelaEstoque tbody')
+te.innerHTML=''
+estoque.forEach(e=>{
+te.innerHTML+=`<tr><td>${e.material}</td><td>${e.qtd}</td><td>${e.custo}</td></tr>`
+})
+
+let totalV=vendas.reduce((s,v)=>s+v.valor*v.qtd,0)
+let totalG=gastos.reduce((s,g)=>s+g.valor,0)
+
+statVendas.innerText='R$ '+totalV
+statGastos.innerText='R$ '+totalG
+statLucro.innerText='R$ '+(totalV-totalG)
+statClientes.innerText=Object.keys(clientesMap).length
+
+renderCharts(totalV,totalG)
+}
+
+let chart1,chart2
+
+function renderCharts(v,g){
+let ctx=document.getElementById('graficoFinanceiro')
+
+if(chart1)chart1.destroy()
+
+chart1=new Chart(ctx,{type:'bar',data:{labels:['Vendas','Gastos'],datasets:[{data:[v,g]}]}})
+
+let meses={}
+
+vendas.forEach(v=>{
+let m=v.data.slice(0,7)
+meses[m]=(meses[m]||0)+(v.valor*v.qtd)
+})
+
+let ctx2=document.getElementById('graficoMensal')
+
+if(chart2)chart2.destroy()
+
+chart2=new Chart(ctx2,{type:'line',data:{labels:Object.keys(meses),datasets:[{data:Object.values(meses)}]}})
+}
+
+function exportPDF(titulo){
+const {jsPDF}=window.jspdf
+let doc=new jsPDF()
+doc.text(titulo,20,20)
+doc.text('ERP Ateliê Mãos de Maria',20,30)
+doc.save(titulo+'.pdf')
+}
+
+let contas=[
+"UNIMED ERIC","UNIMED PATY","AGUA","LUZ","INTERNET",
+"CLARO ERIC","CLARO PATY","VIVO ERIC","VIVO PATY",
+"IPVA CARRO","IPVA MOTO","LICENCIAMENTO CARRO","LICENCIAMENTO MOTO",
+"FAXINA","FATURA ERIC","FATURA PATY","IPTU","EXTRAS"
+]
+
+let grid=document.getElementById('contasGrid')
+
+contas.forEach(c=>{
+let div=document.createElement('div')
+div.innerHTML=`<label>${c}</label><input type='number' id='conta_${c}'>`
+grid.appendChild(div)
+})
+
+function calcularContas(){
+let eric=0,paty=0,outros=0
+
+contas.forEach(c=>{
+let v=parseFloat(document.getElementById('conta_'+c).value)||0
+
+if(c.includes('ERIC'))eric+=v
+else if(c.includes('PATY'))paty+=v
+else outros+=v
+})
+
+let total=eric+paty+outros
+
+resultadoContas.innerHTML=`
+Eric: R$ ${eric}<br>
+Paty: R$ ${paty}<br>
+Outros: R$ ${outros}<br>
+Total: R$ ${total}<br>
+Dividido por 2: R$ ${total/2}
+`
+}
+
+render()
+</script>
+
+</body>
+</html>
